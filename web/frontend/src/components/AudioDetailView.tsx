@@ -1239,6 +1239,37 @@ useEffect(() => {
 		return name.replace(/\.[^/.]+$/, '') || 'transcript';
 	};
 
+	const downloadAudioFile = async () => {
+		try {
+			const response = await fetch(`/api/v1/transcription/${audioId}/audio`, {
+				method: 'GET',
+				headers: getAuthHeaders(),
+			});
+			
+			if (!response.ok) {
+				toast({ title: 'Failed to download audio file' });
+				return;
+			}
+
+			const blob = await response.blob();
+			const url = URL.createObjectURL(blob);
+			const link = document.createElement('a');
+			link.href = url;
+			
+			// Extract filename from audio_path or use a default
+			const originalFilename = audioFile?.audio_path ? getFileName(audioFile.audio_path) : 'audio-file.mp3';
+			link.download = originalFilename;
+			
+			document.body.appendChild(link);
+			link.click();
+			document.body.removeChild(link);
+			URL.revokeObjectURL(url);
+		} catch (error) {
+			console.error('Error downloading audio:', error);
+			toast({ title: 'Failed to download audio file' });
+		}
+	};
+
 	const handleDownloadWithDialog = (format: 'txt' | 'json') => {
 		setDownloadFormat(format);
 		setDownloadDialogOpen(true);
@@ -1431,18 +1462,32 @@ useEffect(() => {
 							<p className="text-gray-600 dark:text-gray-400 text-sm">
 								Added on {formatDate(audioFile.created_at)}
 							</p>
-							{(currentStatus || audioFile.status) === "completed" && (
+							<div className="flex items-center gap-2">
+								{/* Download Audio Button */}
 								<button
 									type="button"
-									onClick={openSummarizeDialog}
-									className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300 hover:bg-purple-200 dark:hover:bg-purple-900/50 transition-colors text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
-									title={llmReady === false ? 'Configure LLM in Settings' : 'Summarize transcript'}
-									disabled={llmReady === false}
+									onClick={downloadAudioFile}
+									className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300 hover:bg-blue-200 dark:hover:bg-blue-900/50 transition-colors text-sm font-medium cursor-pointer"
+									title="Download audio file"
 								>
-									<Sparkles className="h-4 w-4" />
-									Summarize
+									<Download className="h-4 w-4" />
+									Download Audio
 								</button>
-							)}
+								
+								{/* Summarize Button - only when completed */}
+								{(currentStatus || audioFile.status) === "completed" && (
+									<button
+										type="button"
+										onClick={openSummarizeDialog}
+										className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300 hover:bg-purple-200 dark:hover:bg-purple-900/50 transition-colors text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+										title={llmReady === false ? 'Configure LLM in Settings' : 'Summarize transcript'}
+										disabled={llmReady === false}
+									>
+										<Sparkles className="h-4 w-4" />
+										Summarize
+									</button>
+								)}
+							</div>
 						</div>
 					</div>
 
