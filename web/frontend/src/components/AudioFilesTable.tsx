@@ -800,7 +800,7 @@ export const AudioFilesTable = memo(function AudioFilesTable({
 				cell: ({ row }) => {
 					const file = row.original;
 					return (
-						<div className="text-center">
+						<div className="text-center" onClick={(e) => e.stopPropagation()}>
 							<Popover
 								open={openPopovers[file.id] || false}
 								onOpenChange={(open) =>
@@ -815,6 +815,7 @@ export const AudioFilesTable = memo(function AudioFilesTable({
 											variant="ghost"
 											size="sm"
 											className="h-8 w-8 sm:h-9 sm:w-9 p-0 cursor-pointer"
+											onClick={(e) => e.stopPropagation()}
 										>
 											<MoreVertical className="h-5 w-5" />
 										</Button>
@@ -1028,19 +1029,12 @@ export const AudioFilesTable = memo(function AudioFilesTable({
 										table.getRowModel().rows.map((row) => (
 											<TableRow
 												key={row.id}
-												onClick={(e) => {
-													// Ne pas déclencher le clic si on clique sur le bouton Actions
-													if ((e.target as HTMLElement).closest('[data-actions-cell]')) {
-														return;
-													}
-													handleAudioClick(row.original.id);
-												}}
+												onClick={() => handleAudioClick(row.original.id)}
 												className="hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors duration-200 border-b border-gray-100 dark:border-gray-700 last:border-b-0 cursor-pointer"
 											>
 												{row.getVisibleCells().map((cell) => (
 													<TableCell
 														key={cell.id}
-														{...(cell.column.id === 'actions' ? { 'data-actions-cell': true } : {})}
 														className={`
 															${cell.column.id === 'created_at' ? 'hidden sm:table-cell' : ''}
 															${cell.column.id === 'title' ? 'whitespace-normal break-words pr-1 sm:pr-2' : ''}
