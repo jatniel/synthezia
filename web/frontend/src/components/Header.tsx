@@ -6,12 +6,13 @@ import {
 	DropdownMenuItem,
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Upload, Mic, Settings, LogOut, Home, Plus, Menu, Zap, Youtube, Video, Users } from "lucide-react";
+import { Upload, Mic, Settings, LogOut, Home, Plus, Menu, Zap, Youtube, Video, Users, Radio } from "lucide-react";
 import { ScriberrLogo } from "./ScriberrLogo";
 import { ThemeSwitcher } from "./ThemeSwitcher";
 import { AudioRecorder } from "./AudioRecorder";
 import { QuickTranscriptionDialog } from "./QuickTranscriptionDialog";
 import { YouTubeDownloadDialog } from "./YouTubeDownloadDialog";
+import { LiveTranscriptionDialog } from "./LiveTranscriptionDialog";
 import { useRouter } from "../contexts/RouterContext";
 import { useAuth } from "../contexts/AuthContext";
 
@@ -34,6 +35,7 @@ export function Header({ onFileSelect, onMultiTrackClick, onDownloadComplete }: 
 	const [isRecorderOpen, setIsRecorderOpen] = useState(false);
 	const [isQuickTranscriptionOpen, setIsQuickTranscriptionOpen] = useState(false);
 	const [isYouTubeDialogOpen, setIsYouTubeDialogOpen] = useState(false);
+	const [isLiveTranscriptionOpen, setIsLiveTranscriptionOpen] = useState(false);
 
 	const handleUploadClick = () => {
 		fileInputRef.current?.click();
@@ -53,6 +55,10 @@ export function Header({ onFileSelect, onMultiTrackClick, onDownloadComplete }: 
 
 	const handleYouTubeClick = () => {
 		setIsYouTubeDialogOpen(true);
+	};
+
+	const handleLiveTranscriptionClick = () => {
+		setIsLiveTranscriptionOpen(true);
 	};
 
 	const handleMultiTrackClick = () => {
@@ -129,6 +135,18 @@ export function Header({ onFileSelect, onMultiTrackClick, onDownloadComplete }: 
 							align="end"
 							className="w-48 bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-700 shadow-lg"
 						>
+							<DropdownMenuItem
+								onClick={handleLiveTranscriptionClick}
+								className="flex items-center gap-3 px-4 py-3 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300"
+							>
+								<Radio className="h-4 w-4 text-orange-500" />
+								<div>
+									<div className="font-medium">Live Transcription</div>
+									<div className="text-xs text-gray-500 dark:text-gray-400">
+										Transcribe audio in real-time
+									</div>
+								</div>
+							</DropdownMenuItem>
 							<DropdownMenuItem
 								onClick={handleQuickTranscriptionClick}
 								className="flex items-center gap-3 px-4 py-3 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300"
@@ -275,6 +293,12 @@ export function Header({ onFileSelect, onMultiTrackClick, onDownloadComplete }: 
 				isOpen={isYouTubeDialogOpen}
 				onClose={() => setIsYouTubeDialogOpen(false)}
 				onDownloadComplete={onDownloadComplete}
+			/>
+
+			{/* Live Transcription Dialog */}
+			<LiveTranscriptionDialog
+				isOpen={isLiveTranscriptionOpen}
+				onClose={() => setIsLiveTranscriptionOpen(false)}
 			/>
 
 		</header>
