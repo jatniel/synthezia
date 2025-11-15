@@ -5,8 +5,8 @@ import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
 import { useRouter } from '@/contexts/RouterContext';
 import { useToast } from '@/components/ui/toast';
-import type { LiveChunk, LiveSession, LiveSessionStatus, LiveStreamEvent } from '@/types/live';
-import { AlertCircle, ExternalLink, Mic, Pause, PlayCircle, Radio, StopCircle } from 'lucide-react';
+import type { LiveChunk, LiveSession, LiveStreamEvent } from '@/types/live';
+import { AlertCircle, ExternalLink, Pause, PlayCircle, Radio, StopCircle } from 'lucide-react';
 
 interface LiveTranscriptionDialogProps {
   isOpen: boolean;
@@ -62,26 +62,52 @@ export function LiveTranscriptionDialog({ isOpen, onClose }: LiveTranscriptionDi
   }, []);
 
   const stopRecorder = useCallback(() => {
-    if (chunkIntervalRef.current !== null) {
-      clearInterval(chunkIntervalRef.current);
-      chunkIntervalRef.current = null;
-    }
-    if (mediaRecorderRef.current) {
+    return new Promise<void>((resolve) => {
+      if (chunkIntervalRef.current !== null) {
+        clearInterval(chunkIntervalRef.current);
+        chunkIntervalRef.current = null;
+      }
+      
+      if (!mediaRecorderRef.current) {
+        if (mediaStreamRef.current) {
+          mediaStreamRef.current.getTracks().forEach(track => track.stop());
+          mediaStreamRef.current = null;
+        }
+        setIsRecording(false);
+        resolve();
+        return;
+      }
+
+      // Set up one-time handler to wait for final chunk
+      const currentRecorder = mediaRecorderRef.current;
+      
+      currentRecorder.onstop = () => {
+        // Don't restart (interval is cleared)
+        if (mediaStreamRef.current) {
+          mediaStreamRef.current.getTracks().forEach(track => track.stop());
+          mediaStreamRef.current = null;
+        }
+        mediaRecorderRef.current = null;
+        setIsRecording(false);
+        resolve();
+      };
+
       try {
-        mediaRecorderRef.current.stop();
+        currentRecorder.stop();
       } catch (err) {
         console.warn('Failed to stop media recorder', err);
+        currentRecorder.ondataavailable = null;
+        currentRecorder.onerror = null;
+        currentRecorder.onstop = null;
+        mediaRecorderRef.current = null;
+        if (mediaStreamRef.current) {
+          mediaStreamRef.current.getTracks().forEach(track => track.stop());
+          mediaStreamRef.current = null;
+        }
+        setIsRecording(false);
+        resolve();
       }
-      mediaRecorderRef.current.ondataavailable = null;
-      mediaRecorderRef.current.onerror = null;
-      mediaRecorderRef.current.onstop = null;
-      mediaRecorderRef.current = null;
-    }
-    if (mediaStreamRef.current) {
-      mediaStreamRef.current.getTracks().forEach(track => track.stop());
-      mediaStreamRef.current = null;
-    }
-    setIsRecording(false);
+    });
   }, []);
 
   const disconnectStream = useCallback(() => {
@@ -109,7 +135,7 @@ export function LiveTranscriptionDialog({ isOpen, onClose }: LiveTranscriptionDi
   }, [getAuthHeaders]);
 
   const cleanup = useCallback(async () => {
-    stopRecorder();
+    await stopRecorder();
     disconnectStream();
     await cancelRemoteSession();
     resetState();
@@ -353,9 +379,11 @@ export function LiveTranscriptionDialog({ isOpen, onClose }: LiveTranscriptionDi
   const finalizeSession = async () => {
     if (!session) return;
     setPendingAction('finalize');
-    stopRecorder();
     
-    // Wait for all pending uploads to complete
+    // Stop recording and wait for final chunk to be emitted
+    await stopRecorder();
+    
+    // Wait for all pending uploads to complete (including the final chunk)
     await uploadPromiseRef.current;
     
     try {
@@ -381,158 +409,204 @@ export function LiveTranscriptionDialog({ isOpen, onClose }: LiveTranscriptionDi
     }
   };
 
-  const cancelSession = async () => {
-    if (!session) {
-      await cleanup();
-      onClose();
-      return;
-    }
-    setPendingAction('cancel');
-    stopRecorder();
-    try {
-      await fetch(`/api/v1/transcription/live/sessions/${session.id}/cancel`, {
-        method: 'POST',
-        headers: {
-          ...getAuthHeaders(),
-        },
-      });
-      setSession(prev => (prev ? { ...prev, status: 'cancelled' as LiveSessionStatus } : prev));
-      toast({ title: 'Session cancelled' });
-    } finally {
-      setPendingAction(null);
-    }
-  };
-
   const handleClose = async () => {
     await cleanup();
     onClose();
   };
 
-  const statusBadge = useMemo(() => {
-    if (!session) return null;
-    const color = session.status === 'active'
-      ? 'bg-green-100 text-green-800'
-      : session.status === 'finalizing'
-        ? 'bg-amber-100 text-amber-800'
-        : session.status === 'completed'
-          ? 'bg-blue-100 text-blue-800'
-          : 'bg-red-100 text-red-800';
-    return (
-      <span className={`text-xs px-2 py-1 rounded-full font-medium ${color}`}>
-        {session.status.toUpperCase()}
-      </span>
-    );
-  }, [session]);
-
   const hasSession = !!session;
+
+  const recordingTime = useMemo(() => {
+    if (!session) return 0;
+    const now = Date.now();
+    const start = new Date(session.created_at).getTime();
+    return now - start;
+  }, [session, chunks]); // Update when chunks arrive
+
+  const formatTime = (timeMs: number) => {
+    const minutes = Math.floor(timeMs / 60000);
+    const seconds = Math.floor((timeMs % 60000) / 1000);
+    return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+  };
 
   return (
     <Dialog open={isOpen} onOpenChange={() => handleClose()}>
-      <DialogContent className="sm:max-w-2xl">
+      <DialogContent className="sm:max-w-[600px] bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <Radio className="h-5 w-5 text-blue-500" />
+          <DialogTitle className="text-gray-900 dark:text-gray-100 text-xl font-semibold">
             Live Transcription
           </DialogTitle>
-          <DialogDescription>
-            Stream audio directly to Scriberr and receive rolling transcripts while the meeting unfolds.
+          <DialogDescription className="text-gray-600 dark:text-gray-400">
+            Stream audio directly from your microphone for real-time transcription.
           </DialogDescription>
         </DialogHeader>
 
-        {!hasSession && (
-          <div className="space-y-4">
+        <div className="space-y-6 py-4">
+          {/* Title Input */}
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
+              Session Title (Optional)
+            </label>
             <Input
-              placeholder="Meeting title (optional)"
               value={title}
-              onChange={e => setTitle(e.target.value)}
+              onChange={(e) => setTitle(e.target.value)}
+              placeholder="Enter a title for your session..."
+              className="bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-gray-100"
+              disabled={hasSession}
             />
-            <Button onClick={startSession} disabled={isStarting} className="w-full">
-              {isStarting ? 'Preparing microphones…' : 'Start live session'}
-            </Button>
           </div>
-        )}
 
-        {hasSession && (
-          <div className="space-y-4">
-            <div className="flex items-center justify-between gap-2">
-              <div>
-                <div className="font-semibold text-gray-900 dark:text-gray-100">{session?.title || 'Untitled meeting'}</div>
-                <div className="text-xs text-gray-500">Session ID: {session?.id}</div>
+          {/* Recording Time */}
+          {hasSession && (
+            <div className="text-center">
+              <div className="text-3xl font-mono font-bold text-gray-900 dark:text-gray-100 mb-2">
+                {formatTime(recordingTime)}
               </div>
-              {statusBadge}
-            </div>
-
-            {streamError && (
-              <div className="flex items-center gap-2 text-amber-600 text-sm">
-                <AlertCircle className="h-4 w-4" />
-                {streamError}
+              <div className="flex items-center justify-center gap-2 text-sm text-gray-600 dark:text-gray-400">
+                {isRecording && (
+                  <div className="h-2 w-2 bg-red-500 rounded-full animate-pulse"></div>
+                )}
+                <span>
+                  {isRecording ? 'Recording...' : session?.status === 'completed' ? 'Completed' : 'Paused'}
+                </span>
               </div>
-            )}
-
-            <div className="p-3 border rounded-lg h-48 overflow-y-auto bg-gray-50 dark:bg-gray-800/50">
-              {chunks.length === 0 ? (
-                <div className="text-sm text-gray-500 flex items-center gap-2">
-                  <Mic className="h-4 w-4" /> Waiting for the first chunk…
+              {isRecording && (
+                <div className="text-xs text-blue-600 dark:text-blue-400 mt-1">
+                  Recording continues even if you switch tabs
                 </div>
-              ) : (
-                chunks.map(chunk => (
-                  <div key={chunk.sequence} className="mb-3">
-                    <div className="text-xs text-gray-500">Chunk #{chunk.sequence} · {chunk.start_offset.toFixed(1)}s → {chunk.end_offset.toFixed(1)}s</div>
-                    <div className="text-sm text-gray-900 dark:text-gray-100">
-                      {chunk.text || <span className="text-gray-400">(transcript pending)</span>}
-                    </div>
-                  </div>
-                ))
+              )}
+              {streamError && (
+                <div className="flex items-center justify-center gap-2 text-amber-600 text-xs mt-2">
+                  <AlertCircle className="h-4 w-4" />
+                  {streamError}
+                </div>
               )}
             </div>
+          )}
 
-            {finalJobId && (
-              <div className="flex items-center justify-between rounded-lg border p-3 text-sm">
-                <div>
-                  Final job queued
-                  <div className="text-xs text-gray-500">#{finalJobId}</div>
-                </div>
-                <Button variant="link" className="p-0" onClick={() => {
+          {/* Visual Indicator (placeholder for waveform) */}
+          {hasSession && (
+            <div className="relative">
+              <div className="w-full rounded-lg p-4 bg-gray-50 dark:bg-gray-800/50 min-h-[120px] flex items-center justify-center">
+                {isRecording ? (
+                  <div className="flex items-center gap-3">
+                    <div className="flex gap-1 items-end h-12">
+                      {[...Array(8)].map((_, i) => (
+                        <div
+                          key={i}
+                          className="w-2 bg-purple-500 rounded-full animate-pulse"
+                          style={{
+                            height: `${30 + Math.random() * 70}%`,
+                            animationDelay: `${i * 0.1}s`,
+                            animationDuration: '0.8s'
+                          }}
+                        />
+                      ))}
+                    </div>
+                    <span className="text-sm text-gray-600 dark:text-gray-400">
+                      {chunks.length} chunk{chunks.length !== 1 ? 's' : ''} processed
+                    </span>
+                  </div>
+                ) : (
+                  <div className="text-gray-400 dark:text-gray-500 text-sm text-center">
+                    <Radio className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                    <div>Audio waveform will appear here during recording</div>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Final Job Link */}
+          {finalJobId && (
+            <div className="flex items-center justify-between rounded-lg border border-green-200 dark:border-green-800 bg-green-50 dark:bg-green-900/20 p-3 text-sm">
+              <div className="text-green-800 dark:text-green-200">
+                ✓ Transcription job queued successfully
+              </div>
+              <Button 
+                variant="link" 
+                className="p-0 text-green-700 dark:text-green-300" 
+                onClick={() => {
                   handleClose();
                   navigate({ path: 'audio-detail', params: { id: finalJobId } });
-                }}>
-                  View job <ExternalLink className="h-4 w-4 ml-1" />
-                </Button>
-              </div>
-            )}
-
-            <div className="flex flex-col sm:flex-row gap-2">
-              <Button
-                className="flex-1"
-                variant={isRecording ? 'destructive' : 'default'}
-                disabled={pendingAction !== null}
-                onClick={isRecording ? stopRecorder : () => startRecorder(session!.id)}
+                }}
               >
-                {isRecording ? (
-                  <span className="flex items-center gap-2"><Pause className="h-4 w-4" /> Pause Capture</span>
-                ) : (
-                  <span className="flex items-center gap-2"><PlayCircle className="h-4 w-4" /> Resume Capture</span>
-                )}
-              </Button>
-              <Button
-                className="flex-1"
-                onClick={finalizeSession}
-                disabled={pendingAction === 'finalize'}
-              >
-                <span className="flex items-center gap-2"><StopCircle className="h-4 w-4" />
-                  {pendingAction === 'finalize' ? 'Finalizing…' : 'Finalize & Queue Job'}
-                </span>
-              </Button>
-              <Button
-                variant="secondary"
-                onClick={cancelSession}
-                disabled={pendingAction === 'cancel'}
-              >
-                Cancel
+                View job <ExternalLink className="h-4 w-4 ml-1" />
               </Button>
             </div>
+          )}
+
+          {/* Recording Controls */}
+          <div className="flex justify-center gap-4">
+            {!hasSession && (
+              <Button
+                onClick={startSession}
+                disabled={isStarting}
+                size="lg"
+                className="bg-red-500 hover:bg-red-600 text-white px-8 py-3 rounded-xl font-medium transition-all duration-300 hover:scale-105"
+              >
+                {isStarting ? (
+                  <>Preparing...</>
+                ) : (
+                  <>
+                    <Radio className="h-5 w-5 mr-2" />
+                    Start Live Session
+                  </>
+                )}
+              </Button>
+            )}
+
+            {hasSession && session?.status === 'active' && (
+              <>
+                {isRecording && (
+                  <Button
+                    onClick={stopRecorder}
+                    size="lg"
+                    variant="outline"
+                    className="border-gray-300 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700 px-6 py-3 rounded-xl"
+                  >
+                    <Pause className="h-5 w-5 mr-2" />
+                    Pause
+                  </Button>
+                )}
+                
+                {!isRecording && (
+                  <Button
+                    onClick={() => startRecorder(session.id)}
+                    size="lg"
+                    variant="outline"
+                    className="border-gray-300 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700 px-6 py-3 rounded-xl"
+                  >
+                    <PlayCircle className="h-5 w-5 mr-2" />
+                    Resume
+                  </Button>
+                )}
+
+                <Button
+                  onClick={finalizeSession}
+                  disabled={pendingAction === 'finalize'}
+                  size="lg"
+                  className="bg-blue-500 hover:bg-blue-600 text-white px-8 py-3 rounded-xl font-medium transition-all duration-300 hover:scale-105"
+                >
+                  {pendingAction === 'finalize' ? (
+                    <>Finalizing...</>
+                  ) : (
+                    <>
+                      <StopCircle className="h-5 w-5 mr-2" />
+                      Finalize & Upload
+                    </>
+                  )}
+                </Button>
+              </>
+            )}
+
+            {hasSession && session?.status !== 'active' && !finalJobId && (
+              <div className="text-center text-sm text-gray-500">
+                Session {session?.status}
+              </div>
+            )}
           </div>
-        )}
+        </div>
       </DialogContent>
     </Dialog>
   );
