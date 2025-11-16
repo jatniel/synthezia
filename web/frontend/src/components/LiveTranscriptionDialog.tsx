@@ -483,16 +483,30 @@ export function LiveTranscriptionDialog({ isOpen, onClose }: LiveTranscriptionDi
           {hasSession && (
             <div className="relative">
               <div className="w-full rounded-lg p-4 bg-gray-50 dark:bg-gray-800/50 min-h-[120px] flex items-center justify-center">
-                {isRecording ? (
-                  <div className="flex items-center gap-1 h-16 justify-center">
+                {pendingAction === 'finalize' ? (
+                  <div className="text-center space-y-3">
+                    <div className="flex items-center justify-center gap-2">
+                      <div className="h-2 w-2 bg-blue-500 rounded-full animate-pulse"></div>
+                      <div className="h-2 w-2 bg-blue-500 rounded-full animate-pulse" style={{ animationDelay: '0.2s' }}></div>
+                      <div className="h-2 w-2 bg-blue-500 rounded-full animate-pulse" style={{ animationDelay: '0.4s' }}></div>
+                    </div>
+                    <div className="text-gray-700 dark:text-gray-300 font-medium">
+                      Processing your transcription...
+                    </div>
+                    <div className="text-gray-500 dark:text-gray-400 text-sm">
+                      This will take a few moments
+                    </div>
+                  </div>
+                ) : isRecording ? (
+                  <div className="w-full flex items-center gap-1 h-16 justify-center">
                     {[...Array(20)].map((_, i) => (
                       <div
                         key={i}
                         className="w-1 bg-purple-500 rounded-full"
                         style={{
                           height: '30%',
-                          animation: `waveform 0.6s ease-in-out infinite`,
-                          animationDelay: `${i * 0.05}s`,
+                          animation: `waveform 1s ease-in-out infinite`,
+                          animationDelay: `${i * 0.07}s`,
                         }}
                       />
                     ))}
