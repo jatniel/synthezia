@@ -23,7 +23,7 @@ SynthezIA is a self‑hosted offline transcription app for converting audio into
 - Clean, distraction‑free UI optimized for reading and working with transcripts
 
 <p align="center">
-  <img alt="SynthezIA homepage" src="screenshots/scriberr-homepage.png" width="720" />
+  <img alt="SynthezIA homepage" src="screenshots/synthezia-homepage.png" width="720" />
 </p>
 
 ## Features
@@ -46,22 +46,22 @@ SynthezIA is a self‑hosted offline transcription app for converting audio into
   <summary>Show screenshots</summary>
 
   <p align="center">
-    <img alt="Transcript view" src="screenshots/scriberr-transcript page.png" width="720" />
+    <img alt="Transcript view" src="screenshots/synthezia-transcript page.png" width="720" />
   </p>
   <p align="center"><em>Minimal transcript reader with playback follow‑along and seek‑from‑text.</em></p>
 
   <p align="center">
-    <img alt="Summarize transcripts" src="screenshots/scriberr-summarize transcripts.png" width="720" />
+    <img alt="Summarize transcripts" src="screenshots/synthezia-summarize transcripts.png" width="720" />
   </p>
   <p align="center"><em>Summarize long recordings and use custom prompts.</em></p>
 
   <p align="center">
-    <img alt="API key management" src="screenshots/scriberr-api-key-management.png" width="720" />
+    <img alt="API key management" src="screenshots/synthezia-api-key-management.png" width="720" />
   </p>
   <p align="center"><em>Generate and manage API keys for the REST API.</em></p>
 
   <p align="center">
-    <img alt="YouTube video transcription" src="screenshots/scriberr-youtube-video.png" width="720" />
+    <img alt="YouTube video transcription" src="screenshots/synthezia-youtube-video.png" width="720" />
   </p>
   <p align="center"><em>Transcribe audio directly from a YouTube link.</em></p>
 
@@ -180,7 +180,7 @@ SynthezIA uses the open‑source pyannote models for local speaker diarization. 
 See the full guide: https://synthezia.app/docs/diarization.html
 
 <p align="center">
-  <img alt="Diarization setup" src="screenshots/scriberr-diarization-setup.png" width="420" />
+  <img alt="Diarization setup" src="screenshots/synthezia-diarization-setup.png" width="420" />
 </p>
 
 ## API
