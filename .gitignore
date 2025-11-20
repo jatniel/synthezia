@@ -47,5 +47,6 @@ server
 test_word_conversion.go
 debug_whisperx_parsing.go
 debug_parsing.go
+synthezia
 synthezia-optimized
 tests/database_test.db-shm
