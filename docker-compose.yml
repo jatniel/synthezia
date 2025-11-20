@@ -5,8 +5,23 @@ services:
       - "8080:8080"
     volumes:
       - synthezia_data:/app/data
+    environment:
+      - OLLAMA_BASE_URL=http://ollama:11434
+      - LLM_PROVIDER=ollama
+      - LLM_MODEL=llama3.2:3b
+    restart: unless-stopped
+    depends_on:
+      - ollama
+
+  ollama:
+    image: ollama/ollama:latest
+    container_name: ollama
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
     restart: unless-stopped
 
 volumes:
   synthezia_data:
-
+  ollama_data:
