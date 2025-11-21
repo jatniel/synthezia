@@ -81,6 +81,8 @@ SynthezIA is a self‑hosted offline transcription app for converting audio into
 
 
 ### Clone the repo
+Local dev :
+
 ```bash
 git clone https://github.com/MatVD/synthezia.git
 cd synthezia
