@@ -5,6 +5,7 @@ import { Label } from "./ui/label";
 import { Separator } from "./ui/separator";
 import { Eye, EyeOff, User, Lock, Check, X } from "lucide-react";
 import { useAuth } from "../contexts/AuthContext";
+import { apiClient } from "../lib/api";
 
 interface PasswordStrength {
 	hasMinLength: boolean;
@@ -15,7 +16,7 @@ interface PasswordStrength {
 }
 
 export function AccountSettings() {
-	const { getAuthHeaders, logout } = useAuth();
+	const { logout } = useAuth();
 	const [loading, setLoading] = useState(false);
 	const [error, setError] = useState("");
 	const [success, setSuccess] = useState("");
@@ -54,12 +55,8 @@ export function AccountSettings() {
 		setLoading(true);
 
 		try {
-			const response = await fetch("/api/v1/auth/change-username", {
+			const response = await apiClient("/api/v1/auth/change-username", {
 				method: "POST",
-				headers: {
-					"Content-Type": "application/json",
-					...getAuthHeaders(),
-				},
 				body: JSON.stringify({
 					newUsername,
 					password: usernamePassword,
@@ -100,12 +97,8 @@ export function AccountSettings() {
 		setLoading(true);
 
 		try {
-			const response = await fetch("/api/v1/auth/change-password", {
+			const response = await apiClient("/api/v1/auth/change-password", {
 				method: "POST",
-				headers: {
-					"Content-Type": "application/json",
-					...getAuthHeaders(),
-				},
 				body: JSON.stringify({
 					currentPassword,
 					newPassword,

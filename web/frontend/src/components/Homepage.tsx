@@ -3,7 +3,7 @@ import { Header } from "./Header";
 import { AudioFilesTable } from "./AudioFilesTable";
 import { DragDropOverlay } from "./DragDropOverlay";
 import { MultiTrackUploadDialog } from "./MultiTrackUploadDialog";
-import { useAuth } from "../contexts/AuthContext";
+import { apiClient } from "../lib/api";
 import { Progress } from "./ui/progress";
 import { X, CheckCircle, AlertCircle } from "lucide-react";
 import { 
@@ -27,7 +27,6 @@ interface UploadProgress {
 }
 
 export function Homepage() {
-	const { getAuthHeaders } = useAuth();
 	const [refreshTrigger, setRefreshTrigger] = useState(0);
 	const [uploadProgress, setUploadProgress] = useState<UploadProgress[]>([]);
 	const [isUploading, setIsUploading] = useState(false);
@@ -46,11 +45,8 @@ export function Homepage() {
 		formData.append("title", file.name.replace(/\.[^/.]+$/, ""));
 
 		try {
-			const response = await fetch("/api/v1/transcription/upload", {
+			const response = await apiClient("/api/v1/transcription/upload", {
 				method: "POST",
-				headers: {
-					...getAuthHeaders(),
-				},
 				body: formData,
 			});
 
@@ -66,11 +62,8 @@ export function Homepage() {
 		formData.append("title", file.name.replace(/\.[^/.]+$/, ""));
 
 		try {
-			const response = await fetch("/api/v1/transcription/upload-video", {
+			const response = await apiClient("/api/v1/transcription/upload-video", {
 				method: "POST",
-				headers: {
-					...getAuthHeaders(),
-				},
 				body: formData,
 			});
 
@@ -176,11 +169,8 @@ export function Homepage() {
 				formData.append('tracks', file);
 			});
 
-			const response = await fetch("/api/v1/transcription/upload-multitrack", {
+			const response = await apiClient("/api/v1/transcription/upload-multitrack", {
 				method: "POST",
-				headers: {
-					...getAuthHeaders(),
-				},
 				body: formData,
 			});
 

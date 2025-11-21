@@ -10,6 +10,7 @@ import { Input } from "./ui/input";
 import { useAuth } from "../contexts/AuthContext";
 import { useChatEvents } from "../contexts/ChatEventsContext";
 import { useToast } from "./ui/toast";
+import { apiClient } from "../lib/api";
 
 interface ChatSession {
   id: string;
@@ -89,9 +90,7 @@ export const ChatInterface = memo(function ChatInterface({ transcriptionId, acti
   const loadChatSession = useCallback(async (sessionId: string) => {
     try {
       setMessages([])
-      const response = await fetch(`/api/v1/chat/sessions/${sessionId}`, {
-        headers: getAuthHeaders(),
-      });
+      const response = await apiClient(`/api/v1/chat/sessions/${sessionId}`);
       
       if (!response.ok) {
         const errorData = await response.json();
@@ -109,9 +108,7 @@ export const ChatInterface = memo(function ChatInterface({ transcriptionId, acti
 
   const loadChatSessions = useCallback(async () => {
     try {
-      const response = await fetch(`/api/v1/chat/transcriptions/${transcriptionId}/sessions`, {
-        headers: getAuthHeaders(),
-      });
+      const response = await apiClient(`/api/v1/chat/transcriptions/${transcriptionId}/sessions`);
       
       if (!response.ok) {
         const errorData = await response.json();
@@ -166,9 +163,7 @@ export const ChatInterface = memo(function ChatInterface({ transcriptionId, acti
 
   const loadChatModels = async () => {
     try {
-      const response = await fetch("/api/v1/chat/models", {
-        headers: getAuthHeaders(),
-      });
+      const response = await apiClient("/api/v1/chat/models");
       
       if (!response.ok) {
         const errorData = await response.json();
@@ -209,12 +204,8 @@ export const ChatInterface = memo(function ChatInterface({ transcriptionId, acti
       };
       setMessages(prev => [...prev, userMessage]);
 
-      const response = await fetch(`/api/v1/chat/sessions/${activeSession.id}/messages`, {
+      const response = await apiClient(`/api/v1/chat/sessions/${activeSession.id}/messages`, {
         method: "POST",
-        headers: {
-          ...getAuthHeaders(),
-          "Content-Type": "application/json",
-        },
         body: JSON.stringify({
           content: `${messageContent}\n\nTypeset all your answers in markdown and provide the markdown formatted string. Write equations in latex. Your response should contain only the markdown formatted string - nothing else. DO NOT wrap your response in code blocks, backticks, or any other formatting - return the raw markdown content directly.`,
         }),
@@ -279,9 +270,8 @@ export const ChatInterface = memo(function ChatInterface({ transcriptionId, acti
           if (sid) {
             emitTitleGenerating({ sessionId: sid, isGenerating: true });
             try {
-              const res = await fetch(`/api/v1/chat/sessions/${sid}/title/auto`, {
+              const res = await apiClient(`/api/v1/chat/sessions/${sid}/title/auto`, {
                 method: 'POST',
-                headers: { ...getAuthHeaders() }
               });
               
               if (res.ok) {

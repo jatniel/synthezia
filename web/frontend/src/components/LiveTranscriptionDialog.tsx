@@ -2,9 +2,9 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { useAuth } from '@/contexts/AuthContext';
 import { useRouter } from '@/contexts/RouterContext';
 import { useToast } from '@/components/ui/toast';
+import { apiClient } from '@/lib/api';
 import type { LiveSession, LiveStreamEvent } from '@/types/live';
 import { AlertCircle, Pause, PlayCircle, Radio, StopCircle } from 'lucide-react';
 
@@ -24,7 +24,6 @@ interface FinalizeResponse {
 }
 
 export function LiveTranscriptionDialog({ isOpen, onClose, onSessionComplete }: LiveTranscriptionDialogProps) {
-  const { getAuthHeaders } = useAuth();
   const { navigate } = useRouter();
   const { toast } = useToast();
 
@@ -35,6 +34,7 @@ export function LiveTranscriptionDialog({ isOpen, onClose, onSessionComplete }: 
   const [streamError, setStreamError] = useState<string | null>(null);
   const [finalJobId, setFinalJobId] = useState<string | null>(null);
   const [pendingAction, setPendingAction] = useState<'finalize' | 'cancel' | null>(null);
+  const [fastFinalizeEnabled, setFastFinalizeEnabled] = useState(true);
 
   const mediaStreamRef = useRef<MediaStream | null>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
@@ -122,16 +122,13 @@ export function LiveTranscriptionDialog({ isOpen, onClose, onSessionComplete }: 
       return;
     }
     try {
-      await fetch(`/api/v1/transcription/live/sessions/${active.id}/cancel`, {
+      await apiClient(`/api/v1/transcription/live/sessions/${active.id}/cancel`, {
         method: 'POST',
-        headers: {
-          ...getAuthHeaders(),
-        },
       });
     } catch {
       // Best-effort cancellation
     }
-  }, [getAuthHeaders]);
+  }, []);
 
   const cleanup = useCallback(async () => {
     await stopRecorder();
@@ -143,6 +140,19 @@ export function LiveTranscriptionDialog({ isOpen, onClose, onSessionComplete }: 
   useEffect(() => {
     if (!isOpen) {
       cleanup();
+    } else {
+      // Fetch user settings when dialog opens
+      apiClient('/api/v1/user/settings')
+        .then(res => {
+          if (res.ok) return res.json();
+          throw new Error('Failed to fetch settings');
+        })
+        .then(data => {
+          if (data.fast_finalize_enabled !== undefined) {
+            setFastFinalizeEnabled(data.fast_finalize_enabled);
+          }
+        })
+        .catch(err => console.error('Failed to fetch user settings', err));
     }
   }, [isOpen, cleanup]);
 
@@ -166,14 +176,9 @@ export function LiveTranscriptionDialog({ isOpen, onClose, onSessionComplete }: 
     formData.append('start_offset', startOffset.toFixed(3));
     formData.append('end_offset', endOffset.toFixed(3));
 
-    const headers = new Headers();
-    const authHeaders = getAuthHeaders();
-    Object.entries(authHeaders).forEach(([key, value]) => headers.set(key, value));
-
     const upload = () =>
-      fetch(`/api/v1/transcription/live/sessions/${currentSession.id}/chunks`, {
+      apiClient(`/api/v1/transcription/live/sessions/${currentSession.id}/chunks`, {
         method: 'POST',
-        headers,
         body: formData,
       })
         .catch(() => {
@@ -181,11 +186,12 @@ export function LiveTranscriptionDialog({ isOpen, onClose, onSessionComplete }: 
             title: 'Chunk upload failed',
             description: 'A live chunk failed to upload. Trying to continue.',
           });
+          // Return undefined to match the success case
         })
         .then(() => undefined);
 
     uploadPromiseRef.current = uploadPromiseRef.current.then(upload);
-  }, [getAuthHeaders, toast]);
+  }, [toast]);
 
   const handleStreamEvent = useCallback((event: LiveStreamEvent) => {
     setSession(prev => {
@@ -217,10 +223,7 @@ export function LiveTranscriptionDialog({ isOpen, onClose, onSessionComplete }: 
     const controller = new AbortController();
     streamAbortRef.current = controller;
     try {
-      const res = await fetch(`/api/v1/transcription/live/sessions/${sessionId}/stream`, {
-        headers: {
-          ...getAuthHeaders(),
-        },
+      const res = await apiClient(`/api/v1/transcription/live/sessions/${sessionId}/stream`, {
         signal: controller.signal,
       });
       if (!res.body) {
@@ -255,7 +258,7 @@ export function LiveTranscriptionDialog({ isOpen, onClose, onSessionComplete }: 
         setStreamError('Connection lost. You can keep recording, but data may be delayed.');
       }
     }
-  }, [getAuthHeaders, handleStreamEvent]);
+  }, [handleStreamEvent]);
 
   const startRecorder = useCallback(async (sessionId: string) => {
     try {
@@ -338,12 +341,8 @@ export function LiveTranscriptionDialog({ isOpen, onClose, onSessionComplete }: 
   const startSession = async () => {
     setIsStarting(true);
     try {
-      const response = await fetch('/api/v1/transcription/live/sessions', {
+      const response = await apiClient('/api/v1/transcription/live/sessions', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...getAuthHeaders(),
-        },
         body: JSON.stringify({
           title: title || undefined,
         }),
@@ -394,11 +393,9 @@ export function LiveTranscriptionDialog({ isOpen, onClose, onSessionComplete }: 
     await uploadPromiseRef.current;
     
     try {
-      const response = await fetch(`/api/v1/transcription/live/sessions/${session.id}/finalize`, {
+      const queryParams = fastFinalizeEnabled ? '?skip_reprocessing=true' : '';
+      const response = await apiClient(`/api/v1/transcription/live/sessions/${session.id}/finalize${queryParams}`, {
         method: 'POST',
-        headers: {
-          ...getAuthHeaders(),
-        },
       });
       if (!response.ok) {
         const message = await response.text();
@@ -573,8 +570,9 @@ export function LiveTranscriptionDialog({ isOpen, onClose, onSessionComplete }: 
           )} */}
 
           {/* Recording Controls */}
-          <div className="flex justify-center gap-4">
-            {!hasSession && (
+          <div className="flex flex-col items-center gap-4">
+            <div className="flex justify-center gap-4">
+              {!hasSession && (
               <Button
                 onClick={startSession}
                 disabled={isStarting}
@@ -655,6 +653,7 @@ export function LiveTranscriptionDialog({ isOpen, onClose, onSessionComplete }: 
                 Session {session?.status}
               </div>
             )}
+          </div>
           </div>
         </div>
       </DialogContent>

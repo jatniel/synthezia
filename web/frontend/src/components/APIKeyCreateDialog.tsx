@@ -11,7 +11,7 @@ import {
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
 import { Textarea } from "./ui/textarea";
-import { useAuth } from "../contexts/AuthContext";
+import { apiClient } from "../lib/api";
 
 interface CreatedAPIKey {
 	id: string;
@@ -36,7 +36,6 @@ export function APIKeyCreateDialog({
 	const [description, setDescription] = useState("");
 	const [isCreating, setIsCreating] = useState(false);
 	const [error, setError] = useState("");
-	const { getAuthHeaders } = useAuth();
 
 	const handleSubmit = async (e: React.FormEvent) => {
 		e.preventDefault();
@@ -50,12 +49,8 @@ export function APIKeyCreateDialog({
 		setError("");
 
 		try {
-			const response = await fetch("/api/v1/api-keys/", {
+			const response = await apiClient("/api/v1/api-keys/", {
 				method: "POST",
-				headers: {
-					...getAuthHeaders(),
-					"Content-Type": "application/json",
-				},
 				body: JSON.stringify({
 					name: name.trim(),
 					description: description.trim() || undefined,

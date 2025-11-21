@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Youtube, Download, AlertCircle, CheckCircle } from "lucide-react";
-import { useAuth } from "../contexts/AuthContext";
+import { apiClient } from "../lib/api";
 
 interface YouTubeDownloadDialogProps {
   isOpen: boolean;
@@ -23,7 +23,6 @@ export function YouTubeDownloadDialog({
   onClose, 
   onDownloadComplete 
 }: YouTubeDownloadDialogProps) {
-  const { getAuthHeaders } = useAuth();
   const [url, setUrl] = useState("");
   const [title, setTitle] = useState("");
   const [isDownloading, setIsDownloading] = useState(false);
@@ -51,12 +50,8 @@ export function YouTubeDownloadDialog({
     setError(null);
 
     try {
-      const response = await fetch("/api/v1/transcription/youtube", {
+      const response = await apiClient("/api/v1/transcription/youtube", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          ...getAuthHeaders(),
-        },
         body: JSON.stringify({
           url: url.trim(),
           title: title.trim() || undefined,

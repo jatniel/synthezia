@@ -4,7 +4,7 @@ import { Input } from "./ui/input";
 import { Label } from "./ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/card";
 import { Bot, Key, Globe, CheckCircle, AlertCircle } from "lucide-react";
-import { useAuth } from "../contexts/AuthContext";
+import { apiClient } from "../lib/api";
 
 interface LLMConfig {
 	id?: number;
@@ -26,7 +26,6 @@ export function LLMSettings() {
 	const [loading, setLoading] = useState(true);
 	const [saving, setSaving] = useState(false);
 	const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
-	const { getAuthHeaders } = useAuth();
 
 	useEffect(() => {
 		fetchConfig();
@@ -34,9 +33,7 @@ export function LLMSettings() {
 
 	const fetchConfig = async () => {
 		try {
-			const response = await fetch("/api/v1/llm/config", {
-				headers: getAuthHeaders(),
-			});
+			const response = await apiClient("/api/v1/llm/config");
 
 			if (response.ok) {
 				const data = await response.json();
@@ -65,10 +62,9 @@ export function LLMSettings() {
 		};
 
 		try {
-			const response = await fetch("/api/v1/llm/config", {
+			const response = await apiClient("/api/v1/llm/config", {
 				method: "POST",
 				headers: {
-					...getAuthHeaders(),
 					"Content-Type": "application/json",
 				},
 				body: JSON.stringify(payload),

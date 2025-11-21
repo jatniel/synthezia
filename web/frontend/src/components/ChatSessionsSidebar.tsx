@@ -5,8 +5,8 @@ import { Input } from './ui/input'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from './ui/dialog'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select'
 import { Label } from './ui/label'
-import { useAuth } from '../contexts/AuthContext'
 import { useChatEvents } from '../contexts/ChatEventsContext'
+import { apiClient } from '../lib/api'
 
 interface ChatSession {
   id: string
@@ -25,7 +25,6 @@ export function ChatSessionsSidebar({
   activeSessionId?: string
   onSessionChange: (id: string | null) => void
 }) {
-  const { getAuthHeaders } = useAuth()
   const { subscribeSessionTitleUpdated, subscribeTitleGenerating } = useChatEvents()
   const [sessions, setSessions] = useState<ChatSession[]>([])
   const [availableModels, setAvailableModels] = useState<string[]>([])
@@ -68,7 +67,7 @@ export function ChatSessionsSidebar({
 
   async function loadModels() {
     try {
-      const res = await fetch('/api/v1/chat/models', { headers: getAuthHeaders() })
+      const res = await apiClient('/api/v1/chat/models')
       if (!res.ok) return
       const data = await res.json()
       setAvailableModels(data.models || [])
@@ -78,7 +77,7 @@ export function ChatSessionsSidebar({
 
   async function loadSessions() {
     try {
-      const res = await fetch(`/api/v1/chat/transcriptions/${transcriptionId}/sessions`, { headers: getAuthHeaders() })
+      const res = await apiClient(`/api/v1/chat/transcriptions/${transcriptionId}/sessions`)
       if (!res.ok) return
       const data = await res.json()
       setSessions(data || [])
@@ -88,9 +87,8 @@ export function ChatSessionsSidebar({
   async function createSession() {
     if (!selectedModel) return
     try {
-      const res = await fetch('/api/v1/chat/sessions', {
+      const res = await apiClient('/api/v1/chat/sessions', {
         method: 'POST',
-        headers: { ...getAuthHeaders(), 'Content-Type': 'application/json' },
         body: JSON.stringify({ transcription_id: transcriptionId, model: selectedModel, title: newSessionTitle || undefined }),
       })
       if (!res.ok) return
@@ -104,9 +102,8 @@ export function ChatSessionsSidebar({
 
   async function updateTitle(id: string, title: string) {
     try {
-      const res = await fetch(`/api/v1/chat/sessions/${id}/title`, {
+      const res = await apiClient(`/api/v1/chat/sessions/${id}/title`, {
         method: 'PUT',
-        headers: { ...getAuthHeaders(), 'Content-Type': 'application/json' },
         body: JSON.stringify({ title }),
       })
       if (!res.ok) return
@@ -119,7 +116,7 @@ export function ChatSessionsSidebar({
   async function deleteSession(id: string) {
     if (!confirm('Delete this chat session?')) return
     try {
-      const res = await fetch(`/api/v1/chat/sessions/${id}`, { method: 'DELETE', headers: getAuthHeaders() })
+      const res = await apiClient(`/api/v1/chat/sessions/${id}`, { method: 'DELETE' })
       if (!res.ok) return
       
       // Update sessions list first

@@ -18,7 +18,7 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Loader2 } from "lucide-react";
 import type { WhisperXParams } from "./TranscriptionConfigDialog";
-import { useAuth } from "../contexts/AuthContext";
+import { apiClient } from "../lib/api";
 
 interface TranscriptionProfile {
   id: string;
@@ -43,7 +43,6 @@ export function TranscribeDDialog({
   onStartTranscription,
   loading = false,
 }: TranscribeDDialogProps) {
-  const { getAuthHeaders } = useAuth();
   const [profiles, setProfiles] = useState<TranscriptionProfile[]>([]);
   const [selectedProfileId, setSelectedProfileId] = useState<string>("");
   const [profilesLoading, setProfilesLoading] = useState(false);
@@ -61,22 +60,14 @@ export function TranscribeDDialog({
       setProfilesLoading(true);
       
       // Fetch all profiles
-      const profilesResponse = await fetch("/api/v1/profiles", {
-        headers: {
-          ...getAuthHeaders(),
-        },
-      });
+      const profilesResponse = await apiClient("/api/v1/profiles");
 
       if (profilesResponse.ok) {
         const profilesData: TranscriptionProfile[] = await profilesResponse.json();
         setProfiles(profilesData);
         
         // Fetch user's default profile
-        const defaultResponse = await fetch("/api/v1/user/default-profile", {
-          headers: {
-            ...getAuthHeaders(),
-          },
-        });
+        const defaultResponse = await apiClient("/api/v1/user/default-profile");
         
         if (defaultResponse.ok) {
           const defaultData: TranscriptionProfile = await defaultResponse.json();

@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { Button } from "./ui/button";
 import { Trash2, Calendar, Clock } from "lucide-react";
-import { useAuth } from "../contexts/AuthContext";
+import { apiClient } from "../lib/api";
 
 interface APIKey {
 	id: string;
@@ -21,13 +21,10 @@ export function APIKeyTable({ refreshTrigger, onKeyChange }: APIKeyTableProps) {
 	const [apiKeys, setApiKeys] = useState<APIKey[]>([]);
 	const [loading, setLoading] = useState(true);
 	const [deletingId, setDeletingId] = useState<string | null>(null);
-	const { getAuthHeaders } = useAuth();
 
 	const fetchAPIKeys = async () => {
 		try {
-			const response = await fetch("/api/v1/api-keys/", {
-				headers: getAuthHeaders(),
-			});
+			const response = await apiClient("/api/v1/api-keys/");
 
 			if (response.ok) {
 				const data = await response.json();
@@ -55,9 +52,8 @@ export function APIKeyTable({ refreshTrigger, onKeyChange }: APIKeyTableProps) {
 
 		setDeletingId(id);
 		try {
-			const response = await fetch(`/api/v1/api-keys/${id}`, {
+			const response = await apiClient(`/api/v1/api-keys/${id}`, {
 				method: "DELETE",
-				headers: getAuthHeaders(),
 			});
 
 			if (response.ok) {

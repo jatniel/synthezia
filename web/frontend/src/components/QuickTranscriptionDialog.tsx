@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent } from "@/components/ui/card";
 import { Upload, Clock, CheckCircle, XCircle, FileAudio, Zap } from "lucide-react";
-import { useAuth } from "../contexts/AuthContext";
+import { apiClient } from "../lib/api";
 
 interface Profile {
   id: string;
@@ -51,7 +51,6 @@ interface QuickTranscriptionDialogProps {
 }
 
 export function QuickTranscriptionDialog({ isOpen, onClose }: QuickTranscriptionDialogProps) {
-  const { getAuthHeaders } = useAuth();
   const [step, setStep] = useState<"upload" | "profile" | "processing" | "result">("upload");
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [profiles, setProfiles] = useState<Profile[]>([]);
@@ -79,9 +78,7 @@ export function QuickTranscriptionDialog({ isOpen, onClose }: QuickTranscription
 
   const loadProfiles = async () => {
     try {
-      const response = await fetch("/api/v1/profiles/", {
-        headers: getAuthHeaders(),
-      });
+      const response = await apiClient("/api/v1/profiles/");
       if (response.ok) {
         const data = await response.json();
         setProfiles(data);
@@ -122,9 +119,8 @@ export function QuickTranscriptionDialog({ isOpen, onClose }: QuickTranscription
         formData.append("profile_name", selectedProfile);
       }
 
-      const response = await fetch("/api/v1/transcription/quick", {
+      const response = await apiClient("/api/v1/transcription/quick", {
         method: "POST",
-        headers: getAuthHeaders(),
         body: formData,
       });
 
@@ -146,9 +142,7 @@ export function QuickTranscriptionDialog({ isOpen, onClose }: QuickTranscription
   const startPolling = (jobId: string) => {
     pollIntervalRef.current = setInterval(async () => {
       try {
-        const response = await fetch(`/api/v1/transcription/quick/${jobId}`, {
-          headers: getAuthHeaders(),
-        });
+        const response = await apiClient(`/api/v1/transcription/quick/${jobId}`);
 
         if (response.ok) {
           const jobData = await response.json();

@@ -71,7 +71,7 @@ import { Input } from "@/components/ui/input";
 import { TranscriptionConfigDialog, type WhisperXParams } from "./TranscriptionConfigDialog";
 import { TranscribeDDialog } from "./TranscribeDDialog";
 import { useRouter } from "../contexts/RouterContext";
-import { useAuth } from "../contexts/AuthContext";
+import { apiClient } from "../lib/api";
 import {
 	useReactTable,
 	getCoreRowModel,
@@ -154,7 +154,6 @@ export const AudioFilesTable = memo(function AudioFilesTable({
 	onTranscribe,
 }: AudioFilesTableProps) {
 	const { navigate } = useRouter();
-	const { getAuthHeaders } = useAuth();
 	const [data, setData] = useState<AudioFile[]>([]);
 	const [loading, setLoading] = useState(true);
 	const [isPageChanging, setIsPageChanging] = useState(false);
@@ -205,11 +204,7 @@ export const AudioFilesTable = memo(function AudioFilesTable({
 				params.set('q', currentSearch);
 			}
 			
-			const response = await fetch(`/api/v1/transcription/list?${params}`, {
-				headers: {
-					...getAuthHeaders(),
-				},
-			});
+			const response = await apiClient(`/api/v1/transcription/list?${params}`);
 
 			if (response.ok) {
 				const result: PaginationResponse = await response.json();
@@ -260,11 +255,7 @@ export const AudioFilesTable = memo(function AudioFilesTable({
 				if (processingMultiTrackJobs.length > 0) {
 					try {
 						const progressPromises = processingMultiTrackJobs.map(async (job) => {
-							const response = await fetch(`/api/v1/transcription/${job.id}/track-progress`, {
-								headers: {
-									...getAuthHeaders(),
-								},
-							});
+							const response = await apiClient(`/api/v1/transcription/${job.id}/track-progress`);
 							if (response.ok) {
 								const progress = await response.json();
 								return { jobId: job.id, progress };
@@ -293,7 +284,7 @@ export const AudioFilesTable = memo(function AudioFilesTable({
 			setLoading(false);
 			setIsPageChanging(false);
 		}
-	}, [pagination.pageIndex, pagination.pageSize, globalFilter, getAuthHeaders]);
+	}, [pagination.pageIndex, pagination.pageSize, globalFilter]);
 
 	// Fetch queue positions for pending jobs
 	const fetchQueuePositions = async (jobs: AudioFile[]) => {
@@ -301,11 +292,7 @@ export const AudioFilesTable = memo(function AudioFilesTable({
 		if (pendingJobs.length === 0) return;
 
 		try {
-			const response = await fetch("/api/v1/admin/queue/stats", {
-				headers: {
-					...getAuthHeaders(),
-				},
-			});
+			const response = await apiClient("/api/v1/admin/queue/stats");
 
 			if (response.ok) {
 				// For now, use simple position calculation
@@ -365,12 +352,8 @@ export const AudioFilesTable = memo(function AudioFilesTable({
 		try {
 			setTranscriptionLoading(true);
 
-			const response = await fetch(`/api/v1/transcription/${selectedJobId}/start`, {
+			const response = await apiClient(`/api/v1/transcription/${selectedJobId}/start`, {
 				method: "POST",
-				headers: {
-					...getAuthHeaders(),
-					"Content-Type": "application/json",
-				},
 				body: JSON.stringify(params),
 			});
 
@@ -411,12 +394,8 @@ export const AudioFilesTable = memo(function AudioFilesTable({
 		try {
 			setTranscriptionLoading(true);
 
-			const response = await fetch(`/api/v1/transcription/${selectedJobId}/start`, {
+			const response = await apiClient(`/api/v1/transcription/${selectedJobId}/start`, {
 				method: "POST",
-				headers: {
-					...getAuthHeaders(),
-					"Content-Type": "application/json",
-				},
 				body: JSON.stringify(params),
 			});
 
@@ -449,11 +428,8 @@ export const AudioFilesTable = memo(function AudioFilesTable({
 		setOpenPopovers((prev) => ({ ...prev, [jobId]: false }));
 
 		try {
-			const response = await fetch(`/api/v1/transcription/${jobId}`, {
+			const response = await apiClient(`/api/v1/transcription/${jobId}`, {
 				method: "DELETE",
-				headers: {
-					...getAuthHeaders(),
-				},
 			});
 
 			if (response.ok) {
@@ -475,11 +451,8 @@ export const AudioFilesTable = memo(function AudioFilesTable({
 		try {
 			setKillingJobs((prev) => new Set(prev).add(jobId));
 			
-			const response = await fetch(`/api/v1/transcription/${jobId}/kill`, {
+			const response = await apiClient(`/api/v1/transcription/${jobId}/kill`, {
 				method: "POST",
-				headers: {
-					...getAuthHeaders(),
-				},
 			});
 
 			if (response.ok) {

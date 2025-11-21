@@ -2,7 +2,6 @@ import { useState, useEffect, useCallback } from "react";
 import { MoreVertical, Trash2, Settings, Terminal } from "lucide-react";
 import { Button } from "./ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover";
-import { useAuth } from "../contexts/AuthContext";
 import {
 	AlertDialog,
 	AlertDialogAction,
@@ -15,6 +14,7 @@ import {
 	AlertDialogTrigger,
 } from "./ui/alert-dialog";
 import type { WhisperXParams } from "./TranscriptionConfigDialog";
+import { apiClient } from "../lib/api";
 
 interface TranscriptionProfile {
 	id: string;
@@ -39,7 +39,6 @@ export function ProfilesTable({
     onEditProfile,
     onCreateProfile,
 }: ProfilesTableProps) {
-	const { getAuthHeaders } = useAuth();
 	const [profiles, setProfiles] = useState<TranscriptionProfile[]>([]);
 	const [loading, setLoading] = useState(true);
 	const [openPopovers, setOpenPopovers] = useState<Record<string, boolean>>({});
@@ -50,11 +49,7 @@ export function ProfilesTable({
 	const fetchProfiles = useCallback(async () => {
 		try {
 			setLoading(true);
-			const response = await fetch("/api/v1/profiles", {
-				headers: {
-					...getAuthHeaders(),
-				},
-			});
+			const response = await apiClient("/api/v1/profiles");
 
 			if (response.ok) {
 				const data = await response.json();
@@ -80,11 +75,8 @@ export function ProfilesTable({
 			try {
 				setDeletingProfiles((prev) => new Set(prev).add(profileId));
 
-				const response = await fetch(`/api/v1/profiles/${profileId}`, {
+				const response = await apiClient(`/api/v1/profiles/${profileId}`, {
 					method: "DELETE",
-					headers: {
-						...getAuthHeaders(),
-					},
 				});
 
 				if (response.ok) {
