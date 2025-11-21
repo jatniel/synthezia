@@ -78,6 +78,8 @@ cd synthezia
 ./synthezia # Run the binary
 ```
 
+Then open http://localhost:8080.
+
 ### Docker
 
 Run the command below in a shell:
@@ -93,47 +95,8 @@ docker run -d \
 
 #### Docker Compose:
 
-```yaml
-version: '3.9'
-services:
-  synthezia:
-    image: jcvd/synthezia:latest
-    container_name: synthezia
-    ports:
-      - "8080:8080"
-    volumes:
-      - synthezia_data:/app/data
-    restart: unless-stopped
-
-volumes:
-  synthezia_data:
-```
-
-#### With GPU (CUDA)
-```yaml
-version: "3.9"
-services:
-  synthezia:
-    image: jcvd/synthezia:v1.0.4-cuda
-    ports:
-      - "8080:8080"
-    volumes:
-      - synthezia_data:/app/data
-    restart: unless-stopped
-    deploy:
-      resources:
-        reservations:
-          devices:
-            - driver: nvidia
-              count: all
-              capabilities:
-                - gpu
-    environment:
-      - NVIDIA_VISIBLE_DEVICES=all
-      - NVIDIA_DRIVER_CAPABILITIES=compute,utility
-
-volumes:
-  synthezia_data: {}
+```bash
+docker-compose up -d
 ```
 
 Then open http://localhost:8080.
