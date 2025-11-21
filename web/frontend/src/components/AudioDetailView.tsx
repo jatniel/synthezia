@@ -24,6 +24,7 @@ import { useRouter } from "../contexts/RouterContext";
 import { useTheme } from "../contexts/ThemeContext";
 import { ThemeSwitcher } from "./ThemeSwitcher";
 import { useAuth } from "../contexts/AuthContext";
+import { apiClient } from "../lib/api";
 import { ChatInterface } from "./ChatInterface";
 import type { Note } from "../types/note";
 import { NotesSidebar } from "./NotesSidebar";
@@ -287,7 +288,7 @@ useEffect(() => {
         // Check LLM configured status for gating
         (async () => {
             try {
-                const res = await fetch('/api/v1/llm/config', { headers: { ...getAuthHeaders() }});
+                const res = await apiClient('/api/v1/llm/config');
                 if (res.ok) {
                     const cfg = await res.json();
                     setLlmReady(!!cfg && cfg.is_active);
@@ -392,11 +393,7 @@ useEffect(() => {
 			// First, try to load the audio file manually to check if it's accessible
 			const audioUrl = `/api/v1/transcription/${audioId}/audio`;
 
-			const response = await fetch(audioUrl, {
-				headers: {
-					...getAuthHeaders(),
-				},
-			});
+			const response = await apiClient(audioUrl);
 
 			if (!response.ok) {
 				console.error(
@@ -557,13 +554,8 @@ useEffect(() => {
 	const fetchTranscriptOnly = async () => {
 		console.log("[DEBUG] *** fetchTranscriptOnly CALLED ***");
 		try {
-			const transcriptResponse = await fetch(
-				`/api/v1/transcription/${audioId}/transcript`,
-				{
-					headers: {
-						...getAuthHeaders(),
-					},
-				},
+			const transcriptResponse = await apiClient(
+				`/api/v1/transcription/${audioId}/transcript`
 			);
 
 			if (transcriptResponse.ok) {
@@ -602,11 +594,7 @@ useEffect(() => {
 
 	const fetchStatusOnly = async () => {
 		try {
-			const response = await fetch(`/api/v1/transcription/${audioId}`, {
-				headers: {
-					...getAuthHeaders(),
-				},
-			});
+			const response = await apiClient(`/api/v1/transcription/${audioId}`);
 			
 			if (response.ok) {
 				const data = await response.json();
@@ -629,11 +617,7 @@ useEffect(() => {
 	const fetchAudioDetails = async () => {
 		try {
 			// Fetch audio file details
-			const audioResponse = await fetch(`/api/v1/transcription/${audioId}`, {
-				headers: {
-					...getAuthHeaders(),
-				},
-			});
+			const audioResponse = await apiClient(`/api/v1/transcription/${audioId}`);
 
 
 			if (audioResponse.ok) {
@@ -643,13 +627,8 @@ useEffect(() => {
 
 				// Fetch transcript if completed
 				if (audioData.status === "completed") {
-					const transcriptResponse = await fetch(
-						`/api/v1/transcription/${audioId}/transcript`,
-						{
-							headers: {
-								...getAuthHeaders(),
-							},
-						},
+					const transcriptResponse = await apiClient(
+						`/api/v1/transcription/${audioId}/transcript`
 					);
 
 					if (transcriptResponse.ok) {
@@ -704,7 +683,7 @@ useEffect(() => {
 
     const fetchNotes = async () => {
         try {
-            const res = await fetch(`/api/v1/transcription/${audioId}/notes`, { headers: { ...getAuthHeaders() }});
+            const res = await apiClient(`/api/v1/transcription/${audioId}/notes`);
             if (res.ok) {
                 const data = await res.json();
                 setNotes(sortNotes(data));
@@ -714,7 +693,7 @@ useEffect(() => {
 
     const fetchExistingSummary = async () => {
         try {
-            const res = await fetch(`/api/v1/transcription/${audioId}/summary`, { headers: { ...getAuthHeaders() }});
+            const res = await apiClient(`/api/v1/transcription/${audioId}/summary`);
             if (res.ok) {
                 const data = await res.json();
                 setExistingSummary(data.content || null);
@@ -731,9 +710,7 @@ useEffect(() => {
         if (executionData) return; // Already loaded
         setExecutionDataLoading(true);
         try {
-            const res = await fetch(`/api/v1/transcription/${audioId}/execution`, { 
-                headers: { ...getAuthHeaders() }
-            });
+            const res = await apiClient(`/api/v1/transcription/${audioId}/execution`);
             if (res.ok) {
                 const data = await res.json();
                 setExecutionData(data);
@@ -857,9 +834,8 @@ useEffect(() => {
     const saveNewNote = async () => {
         if (!pendingSelection) return;
         try {
-            const res = await fetch(`/api/v1/transcription/${audioId}/notes`, {
+            const res = await apiClient(`/api/v1/transcription/${audioId}/notes`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
                 body: JSON.stringify({
                     start_word_index: pendingSelection.startIdx,
                     end_word_index: pendingSelection.endIdx,
@@ -880,16 +856,15 @@ useEffect(() => {
     };
 
     const updateNote = async (id: string, newContent: string) => {
-        await fetch(`/api/v1/notes/${id}`, {
+        await apiClient(`/api/v1/notes/${id}`, {
             method: 'PUT',
-            headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
             body: JSON.stringify({ content: newContent }),
         });
         setNotes(prev => prev.map(n => n.id === id ? { ...n, content: newContent } : n));
     };
 
     const deleteNote = async (id: string) => {
-        await fetch(`/api/v1/notes/${id}`, { method: 'DELETE', headers: { ...getAuthHeaders() }});
+        await apiClient(`/api/v1/notes/${id}`, { method: 'DELETE' });
         setNotes(prev => prev.filter(n => n.id !== id));
     };
 
@@ -1004,9 +979,8 @@ useEffect(() => {
         if (!trimmed || trimmed === currentDisplay) { setEditingTitle(false); return; }
         setSavingTitle(true);
         try {
-            const res = await fetch(`/api/v1/transcription/${audioFile.id}/title`, {
+            const res = await apiClient(`/api/v1/transcription/${audioFile.id}/title`, {
                 method: 'PUT',
-                headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
                 body: JSON.stringify({ title: trimmed }),
             });
             if (res.ok) {
@@ -1029,7 +1003,7 @@ useEffect(() => {
         if (llmReady === false) return;
         // If a summary already exists for this transcription, show it directly
         try {
-            const resExisting = await fetch(`/api/v1/transcription/${audioId}/summary`, { headers: { ...getAuthHeaders() }});
+            const resExisting = await apiClient(`/api/v1/transcription/${audioId}/summary`);
             if (resExisting.ok) {
                 const data = await resExisting.json();
                 setSummaryStream(data.content || '');
@@ -1044,7 +1018,7 @@ useEffect(() => {
         if (templates.length === 0) {
             try {
                 setTemplatesLoading(true);
-                const res = await fetch('/api/v1/summaries', { headers: { ...getAuthHeaders() }});
+                const res = await apiClient('/api/v1/summaries');
                 if (res.ok) {
                     const data = await res.json();
                     setTemplates(data || []);
@@ -1063,9 +1037,8 @@ useEffect(() => {
         setSummaryError(null);
         setIsSummarizing(true);
         try {
-            const res = await fetch('/api/v1/summarize', {
+            const res = await apiClient('/api/v1/summarize', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
                 body: JSON.stringify({ model: tpl.model, content: combined, transcription_id: audioId, template_id: tpl.id }),
             });
             if (!res.body) {
@@ -1256,9 +1229,8 @@ useEffect(() => {
 
 	const downloadAudioFile = async () => {
 		try {
-			const response = await fetch(`/api/v1/transcription/${audioId}/audio`, {
+			const response = await apiClient(`/api/v1/transcription/${audioId}/audio`, {
 				method: 'GET',
-				headers: getAuthHeaders(),
 			});
 			
 			if (!response.ok) {
@@ -1336,9 +1308,7 @@ useEffect(() => {
 		}
 
 		try {
-			const response = await fetch(`/api/v1/transcription/${audioId}/speakers`, {
-				headers: { ...getAuthHeaders() },
-			});
+			const response = await apiClient(`/api/v1/transcription/${audioId}/speakers`);
 
 			if (response.ok) {
 				const mappings: { id?: number; original_speaker: string; custom_name: string }[] = await response.json();
@@ -2120,7 +2090,7 @@ useEffect(() => {
                                 if (templates.length === 0) {
                                     try {
                                         setTemplatesLoading(true);
-                                        const res = await fetch('/api/v1/summaries', { headers: { ...getAuthHeaders() }});
+                                        const res = await apiClient('/api/v1/summaries');
                                         if (res.ok) {
                                             const data = await res.json();
                                             setTemplates(data || []);

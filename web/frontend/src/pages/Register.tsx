@@ -7,6 +7,7 @@ import { SyntheziaLogo } from "../components/SyntheziaLogo";
 import { useRouter } from "../contexts/RouterContext";
 import { ThemeSwitcher } from "../components/ThemeSwitcher";
 import { Eye, EyeOff, Check, X } from "lucide-react";
+import { apiClient } from "../lib/api";
 
 interface RegisterProps {
 	onRegister: (token: string) => void;
@@ -60,11 +61,9 @@ export function Register({ onRegister }: RegisterProps) {
 		setLoading(true);
 
 		try {
-			const response = await fetch("/api/v1/auth/register", {
+			const response = await apiClient("/api/v1/auth/register", {
 				method: "POST",
-				headers: {
-					"Content-Type": "application/json",
-				},
+				skipAuth: true,
 				body: JSON.stringify({
 					username,
 					password,

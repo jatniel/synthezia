@@ -5,7 +5,7 @@ import { Input } from "./ui/input";
 import { Textarea } from "./ui/textarea";
 import { Button } from "./ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
-import { useAuth } from "../contexts/AuthContext";
+import { apiClient } from "../lib/api";
 
 export interface SummaryTemplate {
   id?: string;
@@ -31,7 +31,6 @@ export function SummaryTemplateDialog({ open, onOpenChange, onSave, initial }: S
   const [prompt, setPrompt] = useState("");
   const [saving, setSaving] = useState(false);
   const [models, setModels] = useState<string[]>([]);
-  const { getAuthHeaders } = useAuth();
 
   useEffect(() => {
     if (open) {
@@ -42,7 +41,7 @@ export function SummaryTemplateDialog({ open, onOpenChange, onSave, initial }: S
       // Load models when dialog opens
       (async () => {
         try {
-          const res = await fetch('/api/v1/chat/models', { headers: { ...getAuthHeaders() }});
+          const res = await apiClient('/api/v1/chat/models');
           if (res.ok) {
             const data = await res.json();
             setModels(data.models || []);

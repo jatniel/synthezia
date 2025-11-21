@@ -7,6 +7,7 @@ import { TranscriptionConfigDialog, type WhisperXParams } from "./TranscriptionC
 import { useAuth } from "../contexts/AuthContext";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
 import { Settings } from "lucide-react";
+import { apiClient } from "../lib/api";
 
 interface TranscriptionProfile {
 	id: string;
@@ -44,18 +45,14 @@ export function ProfileSettings() {
 			setIsLoadingProfiles(true);
 			
 			// Load all profiles
-			const profilesRes = await fetch('/api/v1/profiles', {
-				headers: getAuthHeaders()
-			});
+			const profilesRes = await apiClient('/api/v1/profiles');
 			if (profilesRes.ok) {
 				const profilesData = await profilesRes.json();
 				setProfiles(profilesData);
 			}
 			
 			// Load user's default profile
-			const defaultRes = await fetch('/api/v1/user/default-profile', {
-				headers: getAuthHeaders()
-			});
+			const defaultRes = await apiClient('/api/v1/user/default-profile');
 			if (defaultRes.ok) {
 				const defaultData = await defaultRes.json();
 				setDefaultProfile(defaultData);
@@ -73,12 +70,8 @@ export function ProfileSettings() {
 	// Handle default profile change
 	const handleDefaultProfileChange = useCallback(async (profileId: string) => {
 		try {
-			const res = await fetch('/api/v1/user/default-profile', {
+			const res = await apiClient('/api/v1/user/default-profile', {
 				method: 'POST',
-				headers: {
-					'Content-Type': 'application/json',
-					...getAuthHeaders()
-				},
 				body: JSON.stringify({ profile_id: profileId })
 			});
 			
@@ -106,9 +99,7 @@ export function ProfileSettings() {
 	useEffect(() => {
 		const loadUserSettings = async () => {
 			try {
-				const response = await fetch("/api/v1/user/settings", {
-					headers: getAuthHeaders(),
-				});
+				const response = await apiClient("/api/v1/user/settings");
 				
 				if (response.ok) {
 					const settings = await response.json();
@@ -132,12 +123,8 @@ export function ProfileSettings() {
 		setSuccess("");
 		
 		try {
-			const response = await fetch("/api/v1/user/settings", {
+			const response = await apiClient("/api/v1/user/settings", {
 				method: "PUT",
-				headers: {
-					"Content-Type": "application/json",
-					...getAuthHeaders(),
-				},
 				body: JSON.stringify({
 					auto_transcription_enabled: enabled,
 				}),
@@ -186,9 +173,8 @@ export function ProfileSettings() {
 			let res: Response;
 			if (editingProfile) {
 				// Preserve current default flag unless changed elsewhere
-				res = await fetch(`/api/v1/profiles/${editingProfile.id}`, {
+				res = await apiClient(`/api/v1/profiles/${editingProfile.id}`, {
 					method: "PUT",
-					headers: { "Content-Type": "application/json", ...getAuthHeaders() },
 					body: JSON.stringify({
 						...body,
 						id: editingProfile.id,
@@ -196,9 +182,8 @@ export function ProfileSettings() {
 					}),
 				});
 			} else {
-				res = await fetch(`/api/v1/profiles`, {
+				res = await apiClient(`/api/v1/profiles`, {
 					method: "POST",
-					headers: { "Content-Type": "application/json", ...getAuthHeaders() },
 					body: JSON.stringify(body),
 				});
 			}

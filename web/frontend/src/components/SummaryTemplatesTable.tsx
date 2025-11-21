@@ -4,7 +4,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "./ui/alert-dialog";
 import { Trash2, FileText } from "lucide-react";
 import type { SummaryTemplate } from "./SummaryTemplateDialog";
-import { useAuth } from "../contexts/AuthContext";
+import { apiClient } from "../lib/api";
 
 interface SummaryTemplatesTableProps {
   onEdit: (tpl: SummaryTemplate) => void;
@@ -13,7 +13,6 @@ interface SummaryTemplatesTableProps {
 }
 
 export function SummaryTemplatesTable({ onEdit, refreshTrigger = 0, disabled = false }: SummaryTemplatesTableProps) {
-  const { getAuthHeaders } = useAuth();
   const [items, setItems] = useState<SummaryTemplate[]>([]);
   const [loading, setLoading] = useState(true);
   const [openPop, setOpenPop] = useState<Record<string, boolean>>({});
@@ -22,7 +21,7 @@ export function SummaryTemplatesTable({ onEdit, refreshTrigger = 0, disabled = f
   const fetchItems = useCallback(async () => {
     try {
       setLoading(true);
-      const res = await fetch('/api/v1/summaries', { headers: { ...getAuthHeaders() }});
+      const res = await apiClient('/api/v1/summaries');
       if (res.ok) {
         const data: SummaryTemplate[] = await res.json();
         setItems(data);
@@ -38,7 +37,7 @@ export function SummaryTemplatesTable({ onEdit, refreshTrigger = 0, disabled = f
     setOpenPop(prev => ({ ...prev, [id]: false }));
     try {
       setDeleting(prev => new Set(prev).add(id));
-      const res = await fetch(`/api/v1/summaries/${id}`, { method: 'DELETE', headers: { ...getAuthHeaders() }});
+      const res = await apiClient(`/api/v1/summaries/${id}`, { method: 'DELETE' });
       if (res.ok) {
         setItems(prev => prev.filter(i => i.id !== id));
       } else {

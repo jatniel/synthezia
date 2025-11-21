@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { CheckCircle, AlertCircle, Loader2, Clock } from "lucide-react";
 import { useAuth } from "../contexts/AuthContext";
+import { apiClient } from "../lib/api";
 
 interface MergeStatusBadgeProps {
 	jobId: string;
@@ -19,9 +20,7 @@ export function MergeStatusBadge({ jobId, mergeStatus: initialStatus, mergeError
 		if (status === "processing" || status === "pending") {
 			const interval = setInterval(async () => {
 				try {
-					const response = await fetch(`/api/v1/transcription/${jobId}/merge-status`, {
-						headers: getAuthHeaders(),
-					});
+					const response = await apiClient(`/api/v1/transcription/${jobId}/merge-status`);
 					
 					if (response.ok) {
 						const data = await response.json();

@@ -2,9 +2,9 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { useAuth } from '@/contexts/AuthContext';
 import { useRouter } from '@/contexts/RouterContext';
 import { useToast } from '@/components/ui/toast';
+import { apiClient } from '@/lib/api';
 import type { LiveSession, LiveStreamEvent } from '@/types/live';
 import { AlertCircle, Pause, PlayCircle, Radio, StopCircle } from 'lucide-react';
 
@@ -24,7 +24,6 @@ interface FinalizeResponse {
 }
 
 export function LiveTranscriptionDialog({ isOpen, onClose, onSessionComplete }: LiveTranscriptionDialogProps) {
-  const { getAuthHeaders } = useAuth();
   const { navigate } = useRouter();
   const { toast } = useToast();
 
@@ -122,16 +121,13 @@ export function LiveTranscriptionDialog({ isOpen, onClose, onSessionComplete }: 
       return;
     }
     try {
-      await fetch(`/api/v1/transcription/live/sessions/${active.id}/cancel`, {
+      await apiClient(`/api/v1/transcription/live/sessions/${active.id}/cancel`, {
         method: 'POST',
-        headers: {
-          ...getAuthHeaders(),
-        },
       });
     } catch {
       // Best-effort cancellation
     }
-  }, [getAuthHeaders]);
+  }, []);
 
   const cleanup = useCallback(async () => {
     await stopRecorder();
@@ -166,14 +162,9 @@ export function LiveTranscriptionDialog({ isOpen, onClose, onSessionComplete }: 
     formData.append('start_offset', startOffset.toFixed(3));
     formData.append('end_offset', endOffset.toFixed(3));
 
-    const headers = new Headers();
-    const authHeaders = getAuthHeaders();
-    Object.entries(authHeaders).forEach(([key, value]) => headers.set(key, value));
-
     const upload = () =>
-      fetch(`/api/v1/transcription/live/sessions/${currentSession.id}/chunks`, {
+      apiClient(`/api/v1/transcription/live/sessions/${currentSession.id}/chunks`, {
         method: 'POST',
-        headers,
         body: formData,
       })
         .catch(() => {
@@ -181,11 +172,12 @@ export function LiveTranscriptionDialog({ isOpen, onClose, onSessionComplete }: 
             title: 'Chunk upload failed',
             description: 'A live chunk failed to upload. Trying to continue.',
           });
+          return new Response(null, { status: 500 });
         })
         .then(() => undefined);
 
     uploadPromiseRef.current = uploadPromiseRef.current.then(upload);
-  }, [getAuthHeaders, toast]);
+  }, [toast]);
 
   const handleStreamEvent = useCallback((event: LiveStreamEvent) => {
     setSession(prev => {
@@ -217,10 +209,7 @@ export function LiveTranscriptionDialog({ isOpen, onClose, onSessionComplete }: 
     const controller = new AbortController();
     streamAbortRef.current = controller;
     try {
-      const res = await fetch(`/api/v1/transcription/live/sessions/${sessionId}/stream`, {
-        headers: {
-          ...getAuthHeaders(),
-        },
+      const res = await apiClient(`/api/v1/transcription/live/sessions/${sessionId}/stream`, {
         signal: controller.signal,
       });
       if (!res.body) {
@@ -255,7 +244,7 @@ export function LiveTranscriptionDialog({ isOpen, onClose, onSessionComplete }: 
         setStreamError('Connection lost. You can keep recording, but data may be delayed.');
       }
     }
-  }, [getAuthHeaders, handleStreamEvent]);
+  }, [handleStreamEvent]);
 
   const startRecorder = useCallback(async (sessionId: string) => {
     try {
@@ -338,12 +327,8 @@ export function LiveTranscriptionDialog({ isOpen, onClose, onSessionComplete }: 
   const startSession = async () => {
     setIsStarting(true);
     try {
-      const response = await fetch('/api/v1/transcription/live/sessions', {
+      const response = await apiClient('/api/v1/transcription/live/sessions', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...getAuthHeaders(),
-        },
         body: JSON.stringify({
           title: title || undefined,
         }),
@@ -394,11 +379,8 @@ export function LiveTranscriptionDialog({ isOpen, onClose, onSessionComplete }: 
     await uploadPromiseRef.current;
     
     try {
-      const response = await fetch(`/api/v1/transcription/live/sessions/${session.id}/finalize`, {
+      const response = await apiClient(`/api/v1/transcription/live/sessions/${session.id}/finalize`, {
         method: 'POST',
-        headers: {
-          ...getAuthHeaders(),
-        },
       });
       if (!response.ok) {
         const message = await response.text();

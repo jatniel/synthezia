@@ -13,11 +13,10 @@ import { APIKeySettings } from "../components/APIKeySettings";
 import { LLMSettings } from "../components/LLMSettings";
 import { SummaryTemplateDialog, type SummaryTemplate } from "../components/SummaryTemplateDialog";
 import { SummaryTemplatesTable } from "../components/SummaryTemplatesTable";
-import { useAuth } from "../contexts/AuthContext";
+import { apiClient } from "../lib/api";
 
 export function Settings() {
   const [activeTab, setActiveTab] = useState("transcription");
-  const { getAuthHeaders } = useAuth();
   const [summaryDialogOpen, setSummaryDialogOpen] = useState(false);
   const [editingSummary, setEditingSummary] = useState<SummaryTemplate | null>(null);
   const [summaryRefresh, setSummaryRefresh] = useState(0);
@@ -27,7 +26,7 @@ export function Settings() {
   useEffect(() => {
     const fetchLLM = async () => {
       try {
-        const cfgRes = await fetch('/api/v1/llm/config', { headers: { ...getAuthHeaders() }});
+        const cfgRes = await apiClient('/api/v1/llm/config');
         if (!cfgRes.ok) { setLlmConfigured(false); return; }
         const cfg = await cfgRes.json();
         setLlmConfigured(!!cfg && cfg.is_active);
@@ -40,7 +39,7 @@ export function Settings() {
       }
     };
     fetchLLM();
-  }, [activeTab, getAuthHeaders]);
+  }, [activeTab]);
 
 
 	// Dummy function for file select (Settings page doesn't upload files)
@@ -165,12 +164,11 @@ export function Settings() {
               onOpenChange={(o) => { setSummaryDialogOpen(o); if (!o) setEditingSummary(null); }}
               initial={editingSummary}
               onSave={async (tpl) => {
-                const headers: HeadersInit = { 'Content-Type': 'application/json', ...getAuthHeaders() };
                 try {
                   if (tpl.id) {
-                    await fetch(`/api/v1/summaries/${tpl.id}`, { method: 'PUT', headers, body: JSON.stringify({ name: tpl.name, description: tpl.description, model: tpl.model, prompt: tpl.prompt }) });
+                    await apiClient(`/api/v1/summaries/${tpl.id}`, { method: 'PUT', body: JSON.stringify({ name: tpl.name, description: tpl.description, model: tpl.model, prompt: tpl.prompt }) });
                   } else {
-                    await fetch('/api/v1/summaries', { method: 'POST', headers, body: JSON.stringify({ name: tpl.name, description: tpl.description, model: tpl.model, prompt: tpl.prompt }) });
+                    await apiClient('/api/v1/summaries', { method: 'POST', body: JSON.stringify({ name: tpl.name, description: tpl.description, model: tpl.model, prompt: tpl.prompt }) });
                   }
                 } finally {
                   // keep user on Summary tab and refresh the list without a full reload

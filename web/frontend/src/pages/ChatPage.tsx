@@ -4,14 +4,13 @@ import { ChatInterface } from "../components/ChatInterface";
 import { Button } from "../components/ui/button";
 import { ArrowLeft, Sidebar } from "lucide-react";
 import { ThemeSwitcher } from "../components/ThemeSwitcher";
-import { useAuth } from "../contexts/AuthContext";
 import { ChatSessionsSidebar } from "../components/ChatSessionsSidebar";
+import { apiClient } from "../lib/api";
 
 export function ChatPage() {
 	const { currentRoute, navigate } = useRouter();
 	const audioId = currentRoute.params?.audioId;
 	const sessionId = currentRoute.params?.sessionId;
-	const { getAuthHeaders } = useAuth();
 	const [audioTitle, setAudioTitle] = useState<string | null>(null);
 	const [showSidebar, setShowSidebar] = useState(true);
 
@@ -26,9 +25,7 @@ export function ChatPage() {
 		if (!audioId) return;
 		const fetchTitle = async () => {
 			try {
-				const res = await fetch(`/api/v1/transcription/${audioId}`, {
-					headers: getAuthHeaders(),
-				});
+				const res = await apiClient(`/api/v1/transcription/${audioId}`);
 				if (res.ok) {
 					const data = await res.json();
 					setAudioTitle(data?.title || null);
@@ -40,7 +37,7 @@ export function ChatPage() {
 			}
 		};
 		fetchTitle();
-	}, [audioId, getAuthHeaders]);
+	}, [audioId]);
 
 	if (!audioId) return null;
 

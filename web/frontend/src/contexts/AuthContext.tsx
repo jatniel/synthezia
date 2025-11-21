@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { createContext, useContext, useState, useEffect, useCallback, useMemo, useRef } from "react";
 import type { ReactNode } from "react";
+import { apiClient, setAuthToken, clearAuthToken, isTokenExpired, getAuthToken } from "../lib/api";
 
 interface AuthContextType {
 	token: string | null;
@@ -19,37 +20,20 @@ interface AuthProviderProps {
 }
 
 export function AuthProvider({ children }: AuthProviderProps) {
-	const [token, setToken] = useState<string | null>(null);
+	const [token, setTokenState] = useState<string | null>(getAuthToken());
 	const [isInitialized, setIsInitialized] = useState(false);
 	const [requiresRegistration, setRequiresRegistration] = useState(false);
 	
 	// Use refs to avoid re-creating intervals on every render
 	const tokenCheckIntervalRef = useRef<NodeJS.Timeout | null>(null);
-	const fetchWrapperSetupRef = useRef(false);
-
-	// Memoize expensive token expiry check
-	const isTokenExpired = useCallback((tokenToCheck: string): boolean => {
-		try {
-			const payload = JSON.parse(atob(tokenToCheck.split(".")[1]));
-			const currentTime = Date.now() / 1000;
-			// Check if token will expire in the next 5 minutes
-			return payload.exp && payload.exp <= (currentTime + 300);
-		} catch (error) {
-			console.error("Invalid token format:", error);
-			return true;
-		}
-	}, []);
 
 	// Logout function
   const logout = useCallback(() => {
-    setToken(null);
-    localStorage.removeItem("synthezia_auth_token");
+    setTokenState(null);
+    clearAuthToken();
     // Call logout endpoint to invalidate token server-side (optional)
-    fetch("/api/v1/auth/logout", {
+    apiClient("/api/v1/auth/logout", {
       method: "POST",
-      headers: {
-        "Authorization": token ? `Bearer ${token}` : "",
-      },
     }).catch(() => {
       // Ignore errors in logout call
     });
@@ -58,14 +42,14 @@ export function AuthProvider({ children }: AuthProviderProps) {
       window.history.pushState({ route: { path: 'home' } }, "", "/");
       window.dispatchEvent(new PopStateEvent('popstate', { state: { route: { path: 'home' } } as any }));
     }
-  }, [token]);
+  }, []);
 
 	// Check registration status and load token on mount
 	useEffect(() => {
     const initializeAuth = async () => {
 			try {
 				// First, check if registration is required
-				const response = await fetch("/api/v1/auth/registration-status");
+				const response = await apiClient("/api/v1/auth/registration-status", { skipAuth: true });
 				if (response.ok) {
                 const data = await response.json();
                 // Support both legacy and current API response shapes
@@ -77,13 +61,14 @@ export function AuthProvider({ children }: AuthProviderProps) {
 					
 					// Only check for existing token if registration is not required
                     if (!regEnabled) {
-						const savedToken = localStorage.getItem("synthezia_auth_token");
+						const savedToken = getAuthToken();
 						if (savedToken) {
 							if (isTokenExpired(savedToken)) {
 								// Token expired, remove it
-								localStorage.removeItem("synthezia_auth_token");
+								clearAuthToken();
+								setTokenState(null);
 							} else {
-								setToken(savedToken);
+								setTokenState(savedToken);
 							}
 						}
 					}
@@ -91,12 +76,13 @@ export function AuthProvider({ children }: AuthProviderProps) {
 			} catch (error) {
 				console.error("Failed to check registration status:", error);
 				// If we can't check status, assume no registration needed and check token
-				const savedToken = localStorage.getItem("synthezia_auth_token");
+				const savedToken = getAuthToken();
 				if (savedToken) {
 					if (isTokenExpired(savedToken)) {
-						localStorage.removeItem("synthezia_auth_token");
+						clearAuthToken();
+						setTokenState(null);
 					} else {
-						setToken(savedToken);
+						setTokenState(savedToken);
 					}
 				}
 			} finally {
@@ -105,18 +91,18 @@ export function AuthProvider({ children }: AuthProviderProps) {
 		};
 
 		initializeAuth();
-  }, [isTokenExpired]);
+  }, []);
 
 	const login = useCallback((newToken: string) => {
-		setToken(newToken);
-		localStorage.setItem("synthezia_auth_token", newToken);
+		setTokenState(newToken);
+		setAuthToken(newToken);
 		setRequiresRegistration(false); // Clear registration requirement after successful login/registration
 	}, []);
 
 	// Helper: attempt to refresh JWT via cookie refresh token
 	const tryRefresh = useCallback(async (): Promise<string | null> => {
 		try {
-			const res = await fetch('/api/v1/auth/refresh', { method: 'POST' })
+			const res = await apiClient('/api/v1/auth/refresh', { method: 'POST', skipAuth: true })
 			if (!res.ok) return null
 			const data = await res.json()
 			if (data?.token) {
@@ -129,56 +115,19 @@ export function AuthProvider({ children }: AuthProviderProps) {
 		}
 	}, [login])
 
-	// Consolidated token management: setup fetch wrapper once and handle token expiry
+	// Listen for auth:logout event from api client
 	useEffect(() => {
-		// Setup fetch wrapper only once
-		if (!fetchWrapperSetupRef.current) {
-			const originalFetch = window.fetch.bind(window);
+		const handleLogout = () => {
+			logout();
+		};
+		window.addEventListener("auth:logout", handleLogout);
+		return () => {
+			window.removeEventListener("auth:logout", handleLogout);
+		};
+	}, [logout]);
 
-			const wrappedFetch: typeof window.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
-				// Extract URL to check for auth endpoints
-				let url = "";
-				if (typeof input === "string") {
-					url = input;
-				} else if (input instanceof URL) {
-					url = input.toString();
-				} else if (input instanceof Request) {
-					url = input.url;
-				}
-
-				// Skip interception for login and refresh endpoints to avoid infinite loops
-				if (url.includes("/api/v1/auth/login") || url.includes("/api/v1/auth/refresh")) {
-					return originalFetch(input, init);
-				}
-
-				let res = await originalFetch(input, init);
-				if (res.status === 401) {
-					// Try silent refresh once
-					const newToken = await tryRefresh()
-					if (newToken) {
-						// Retry original request with updated Authorization header if provided
-						const newInit: RequestInit | undefined = init ? { ...init } : undefined
-						if (newInit?.headers && typeof newInit.headers === 'object') {
-							(newInit.headers as Record<string, string>)['Authorization'] = `Bearer ${newToken}`
-						}
-						res = await originalFetch(input, newInit)
-						if (res.status !== 401) return res
-					}
-					// Still unauthorized: force logout
-					logout()
-				}
-				return res;
-			};
-
-			window.fetch = wrappedFetch as any;
-			fetchWrapperSetupRef.current = true;
-			
-			// Cleanup function stored in ref for unmount
-			return () => {
-				window.fetch = originalFetch;
-			};
-		}
-
+	// Token expiry check interval
+	useEffect(() => {
 		// Clear any existing token check interval
 		if (tokenCheckIntervalRef.current) {
 			clearInterval(tokenCheckIntervalRef.current);
@@ -209,7 +158,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
 				clearInterval(tokenCheckIntervalRef.current);
 			}
 		};
-	}, [token, isTokenExpired, logout, tryRefresh])
+	}, [token, logout, tryRefresh])
 
 	const getAuthHeaders = useCallback(() => {
 		if (token) {

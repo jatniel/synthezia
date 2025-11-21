@@ -6,6 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../co
 import { SyntheziaLogo } from "../components/SyntheziaLogo";
 import { useRouter } from "../contexts/RouterContext";
 import { ThemeSwitcher } from "../components/ThemeSwitcher";
+import { apiClient } from "../lib/api";
 
 interface LoginProps {
 	onLogin: (token: string) => void;
@@ -24,11 +25,9 @@ export function Login({ onLogin }: LoginProps) {
 		setLoading(true);
 
 		try {
-			const response = await fetch("/api/v1/auth/login", {
+			const response = await apiClient("/api/v1/auth/login", {
 				method: "POST",
-				headers: {
-					"Content-Type": "application/json",
-				},
+				skipAuth: true,
 				body: JSON.stringify({
 					username,
 					password,
