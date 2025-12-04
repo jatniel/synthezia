@@ -53,3 +53,8 @@ tests/database_test.db-shm
 .idea
 .idea/
 /.idea
+.claude
+/.claude
+brainstorming.md
+brainstorming_fr.md
+roadmap.md
