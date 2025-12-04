@@ -1,23 +1,77 @@
-.dockerdata
-env-data
-docker-compose.ollama.yaml
-Dockerfile
-Dockerfile-cuda128
-install_audiowaveform.sh
-data
-data_bak
-CLAUDE.md
+# Git
+.git
+.gitignore
+.gitattributes
+
+# Documentation
+README.md
+*.md
+docs/
 CNAME
-main
-synthezia-data
-whisperx-env
-samples
-synthezia_files
-synthezia
-install_aw.sh
+
+# IDE
+.vscode
+.idea
+*.swp
+*.swo
+*~
 .prettier*
-venv
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Dependencies
 node_modules
+venv/
+.venv/
+whisperx-env/
+
+# Build artifacts
+dist
+build
+main
+server
+synthezia
+synthezia-optimized
+
+# Test files
+tests/
+*_test.go
+test_*.go
+
+# Data and logs
+data/
+data_bak/
+synthezia-data/
+synthezia_files/
+samples/
+*.db
+*.db-shm
+*.db-wal
+*.log
+logs/
+
+# Environment files
 *.env
-.venv
+!.env.example
+
+# Temporary files
+tmp/
+temp/
+.dockerdata/
+env-data/
+
+# Docker files
+docker-compose*.yaml
+Dockerfile*
+install_*.sh
+
+# Development files
 .aider.*
+.claude/
+brainstorming.md
+brainstorming_fr.md
+roadmap.md
+CLAUDE.md
+AGENTS.md
